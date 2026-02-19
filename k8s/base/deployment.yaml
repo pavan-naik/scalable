@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scalable-app
+  labels:
+    app: scalable-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scalable-app
+  template:
+    metadata:
+      labels:
+        app: scalable-app
+    spec:
+      containers:
+        - name: scalable-app
+          image: scalable-app:latest
+          imagePullPolicy: Never       # Kind uses locally loaded image
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          # If you have a /health/live endpoint in health.py — use it!
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 3
