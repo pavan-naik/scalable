@@ -1,6 +1,9 @@
 APP     = scalable-app
 CLUSTER = scalable-app-cluster
 
+test:
+	pytest tests/ -v
+
 # ── Build ──────────────────────────────────────────────
 build:
 	docker build -t $(APP):latest .
@@ -52,6 +55,3 @@ load-test:
 
 clean-load:
 	kubectl delete pod load-gen --ignore-not-found
-
-tunnel:
-	kubectl port-forward svc/scalable-app-svc 8080:80
