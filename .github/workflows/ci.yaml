@@ -1,6 +1,6 @@
 # ============================================================
 # ci.yml — Continuous Integration
-# TRIGGER : Every PR targeting main
+# TRIGGER : Every PR targeting master
 # PURPOSE : Validate code quality, run tests, security scan
 #           This is the gate. Merge is BLOCKED if this fails.
 # DEPLOYS : NOTHING. Tests only.
@@ -10,7 +10,7 @@ name: CI — Lint, Test, Security
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
     types: [opened, synchronize, reopened]
 
 # Cancel in-progress CI runs if a new commit is pushed to the same PR
