@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.core.exceptions import AppException, ValidationException, ResourceNotFoundException
+from app.core.exceptions import (
+    AppException,
+    ValidationException,
+    ResourceNotFoundException,
+)
 from app.core.error_codes import ErrorCode
 
 # Map exception types to HTTP status codes
@@ -25,15 +29,14 @@ async def app_exception_handler(request: Request, exc: AppException):
                 "message": exc.message,
                 "details": exc.details,
                 "path": request.url.path,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-        }
+        },
     )
 
 
 async def validation_exception_handler(
-        request: Request,
-        exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """
     Handle Pydantic validation errors.
@@ -43,11 +46,7 @@ async def validation_exception_handler(
     errors = []
     for error in exc.errors():
         field = ".".join(str(loc) for loc in error["loc"][1:])
-        errors.append({
-            "field": field,
-            "message": error["msg"],
-            "type": error["type"]
-        })
+        errors.append({"field": field, "message": error["msg"], "type": error["type"]})
 
     return JSONResponse(
         status_code=422,
@@ -57,10 +56,11 @@ async def validation_exception_handler(
                 "message": "Request validation failed",
                 "details": {"validation_errors": errors},
                 "path": request.url.path,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-        }
+        },
     )
+
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
@@ -85,7 +85,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
                 "code": ErrorCode.SYS_INTERNAL_ERROR,
                 "message": "An internal error occurred. Please try again later.",
                 "path": request.url.path,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-        }
+        },
     )

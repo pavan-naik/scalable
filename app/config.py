@@ -1,5 +1,6 @@
 import os
 
+
 class Settings:
     PROJECT_NAME: str = "Generate and Embed API"
     VERSION: str = "1.0.0"
@@ -10,5 +11,6 @@ class Settings:
     def DOCS_URL(self):
         # Hide docs if we are in production
         return None if self.ENV == "prod" else "/docs"
+
 
 settings = Settings()

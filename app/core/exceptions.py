@@ -5,8 +5,10 @@ class AppException(Exception):
         self.details = details or {}
         super().__init__(self.message)
 
+
 class ValidationException(AppException):
     pass
+
 
 class ResourceNotFoundException(AppException):
     pass

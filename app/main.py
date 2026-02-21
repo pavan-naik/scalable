@@ -4,14 +4,16 @@ import uvicorn
 
 from app.config import settings
 from app.routers import health, ml
-from app.api.error_handlers import app_exception_handler, validation_exception_handler, generic_exception_handler
+from app.api.error_handlers import (
+    app_exception_handler,
+    validation_exception_handler,
+    generic_exception_handler,
+)
 from app.core.exceptions import AppException
 from fastapi.exceptions import RequestValidationError
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    docs_url=settings.DOCS_URL
+    title=settings.PROJECT_NAME, version=settings.VERSION, docs_url=settings.DOCS_URL
 )
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
