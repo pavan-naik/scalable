@@ -1,4 +1,3 @@
-import asyncio
 import numpy as np
 
 async def run_generation_task(query: str = "Sample query for generation"):

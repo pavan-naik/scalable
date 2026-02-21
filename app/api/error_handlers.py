@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.core.exceptions import *
+from app.core.exceptions import AppException, ValidationException, ResourceNotFoundException
 from app.core.error_codes import ErrorCode
 
 # Map exception types to HTTP status codes
