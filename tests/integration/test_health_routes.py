@@ -11,7 +11,6 @@ These seem trivial but are important:
 
 
 class TestHealthReady:
-
     def test_returns_200(self, client):
         response = client.get("/health/ready")
         assert response.status_code == 200
@@ -32,7 +31,6 @@ class TestHealthReady:
 
 
 class TestHealthLive:
-
     def test_returns_200(self, client):
         response = client.get("/health/live")
         assert response.status_code == 200

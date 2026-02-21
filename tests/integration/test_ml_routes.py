@@ -34,7 +34,6 @@ import pytest
 
 
 class TestGenerateEndpoint:
-
     # ------------------------------------------------------------------
     # These tests use mock_generation_task fixture from conftest.
     # The fixture intercepts the call at app.routers.ml level.
@@ -107,19 +106,21 @@ class TestGenerateEndpoint:
         response = client.post("/generate", json={})
         assert response.json()["error"]["path"] == "/generate"
 
-    @pytest.mark.parametrize("query", [
-        "hello",
-        "unicode: café",
-        "a " * 200,
-        "newline\nquery",
-    ])
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "hello",
+            "unicode: café",
+            "a " * 200,
+            "newline\nquery",
+        ],
+    )
     def test_various_queries_return_200(self, client, mock_generation_task, query):
         response = client.post("/generate", json={"query": query})
         assert response.status_code == 200
 
 
 class TestEmbedEndpoint:
-
     def test_returns_200(self, client, mock_embedding_task):
         response = client.post("/embed", json={"text": "hello"})
         assert response.status_code == 200

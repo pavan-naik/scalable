@@ -21,9 +21,11 @@ from fastapi.testclient import TestClient
 # App / HTTP client fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="session")
 def app():
     from app.main import app as fastapi_app
+
     return fastapi_app
 
 
@@ -50,17 +52,17 @@ MOCK_GENERATION_RESPONSE = {
             "index": 0,
             "message": {
                 "role": "assistant",
-                "content": "Processed remotely: test query"
+                "content": "Processed remotely: test query",
             },
-            "finish_reason": "stop"
+            "finish_reason": "stop",
         }
-    ]
+    ],
 }
 
 MOCK_EMBEDDING_RESPONSE = {
     "object": "embedding",
     "model": "mock-embeddinggemma",
-    "embedding": [0.1] * 512
+    "embedding": [0.1] * 512,
 }
 
 
@@ -78,6 +80,7 @@ MOCK_EMBEDDING_RESPONSE = {
 #   3. __aexit__  (the `async with` exit — cleanup)
 #   4. client.post() (the actual call inside the block)
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_client(response: MagicMock) -> AsyncMock:
     """Build a mock httpx.AsyncClient that returns a given response."""
@@ -105,6 +108,7 @@ def _make_httpbin_response(echoed_json: dict) -> MagicMock:
 # ---------------------------------------------------------------------------
 # Fixtures for unit testing gen_and_embed.py
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_httpx_generation():
@@ -161,6 +165,7 @@ def mock_httpx_timeout():
 # These mock at app.routers.ml — where the functions are USED after import.
 # The route tests don't care about HTTP at all, only the dict shape.
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_generation_task():
