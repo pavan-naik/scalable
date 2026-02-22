@@ -23,6 +23,7 @@ env:
   REGION: us-central1
   CLUSTER_NAME: scalable-cluster          # replace with your GKE cluster name
   NAMESPACE: dev
+  PORT: 8000
   IMAGE: us-central1-docker.pkg.dev/project-5c5c098b-acba-477e-a1c/scalable/scalable-api
 
 jobs:
@@ -166,10 +167,10 @@ jobs:
             -n ${{ env.NAMESPACE }} --timeout=60s
 
           # Port-forward and test health endpoint
-          kubectl port-forward svc/scalable-api 8080:80 \
+          kubectl port-forward svc/scalable-api ${{ env.PORT }}:80 \
             -n ${{ env.NAMESPACE }} &
           sleep 5
-          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:${{ env.PORT }}/health || exit 1
           echo "✅ Dev deployment healthy"
 
       - name: Print deployment summary
