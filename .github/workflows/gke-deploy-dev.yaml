@@ -1,0 +1,177 @@
+# ============================================================
+# gke-deploy-dev.yml — Deploy to GKE Dev Namespace
+# TRIGGER : Every push to main (after PR merges)
+# PURPOSE : Continuously deploy latest code to dev environment
+#           so the team can see merged work immediately
+# DEPLOYS : GKE cluster → namespace: dev
+# ============================================================
+
+name: GKE — Deploy to Dev
+
+on:
+  push:
+    branches: [master]
+
+# Only one deploy to dev at a time
+# If two PRs merge in quick succession, queue them
+concurrency:
+  group: gke-deploy-dev
+  cancel-in-progress: false   # false = queue, not cancel (don't skip deploys)
+
+env:
+  PROJECT_ID: project-5c5c098b-acba-477e-a1c
+  REGION: us-central1
+  CLUSTER_NAME: scalable-cluster          # replace with your GKE cluster name
+  NAMESPACE: dev
+  IMAGE: us-central1-docker.pkg.dev/project-5c5c098b-acba-477e-a1c/scalable/scalable-api
+
+jobs:
+  # ─────────────────────────────────────────
+  # JOB 1: Run tests before deploying
+  # Never deploy untested code, even to dev.
+  # Dev is where teammates look — keep it stable.
+  # ─────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run tests
+        run: |
+          uv python install 3.12
+          uv sync --dev
+          uv run pytest tests/ --tb=short -q
+
+  # ─────────────────────────────────────────
+  # JOB 2: Build & Push Docker Image
+  # Builds once. Same image promoted through
+  # all environments — never rebuilt.
+  # Tagged with git SHA for full traceability.
+  # ─────────────────────────────────────────
+  build-push:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: test
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.image-tag }}   # pass tag to deploy job
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keyless auth — no JSON keys. Uses Workload Identity Federation.
+      # See GCP_SETUP.md for how to configure this.
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Set image tag
+        id: meta
+        run: |
+          # Use git SHA as tag — unique, traceable, immutable
+          TAG=${{ github.sha }}
+          echo "image-tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Image will be tagged: ${{ env.IMAGE }}:$TAG"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.image-tag }}
+            ${{ env.IMAGE }}:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────
+  # JOB 3: Deploy to GKE Dev Namespace
+  # Uses the image SHA from the build job.
+  # Applies your existing k8s/base manifests
+  # with image tag substitution.
+  # ─────────────────────────────────────────
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build-push
+    environment: dev   # maps to GitHub Environment (optional protection rules)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          location: ${{ env.REGION }}
+
+      - name: Ensure dev namespace exists
+        run: |
+          kubectl get namespace ${{ env.NAMESPACE }} || \
+          kubectl create namespace ${{ env.NAMESPACE }}
+
+      - name: Deploy to dev namespace
+        run: |
+          # Substitute the image tag in your k8s manifests using envsubst
+          # This replaces ${IMAGE_TAG} placeholder in your deployment.yaml
+          export IMAGE_TAG=${{ needs.build-push.outputs.image-tag }}
+          export NAMESPACE=${{ env.NAMESPACE }}
+          export IMAGE=${{ env.IMAGE }}
+
+          # Apply manifests with substituted values
+          envsubst < k8s/base/deployment.yaml | kubectl apply -n ${{ env.NAMESPACE }} -f -
+          kubectl apply -n ${{ env.NAMESPACE }} -f k8s/base/service.yaml
+          kubectl apply -n ${{ env.NAMESPACE }} -f k8s/base/hpa.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/scalable-api \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=300s
+          # 5 min timeout — if pods don't start in 5 min, deployment failed
+
+      - name: Smoke test dev
+        run: |
+          # Get the service IP and hit the health endpoint
+          # Adjust the service name to match your k8s/base/service.yaml
+          kubectl wait --for=condition=available deployment/scalable-api \
+            -n ${{ env.NAMESPACE }} --timeout=60s
+
+          # Port-forward and test health endpoint
+          kubectl port-forward svc/scalable-api 8080:80 \
+            -n ${{ env.NAMESPACE }} &
+          sleep 5
+          curl -f http://localhost:8080/health || exit 1
+          echo "✅ Dev deployment healthy"
+
+      - name: Print deployment summary
+        if: always()
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Namespace  : ${{ env.NAMESPACE }}"
+          echo "Image Tag  : ${{ needs.build-push.outputs.image-tag }}"
+          echo "Commit SHA : ${{ github.sha }}"
+          echo "Triggered by: ${{ github.actor }}"
+          kubectl get pods -n ${{ env.NAMESPACE }}

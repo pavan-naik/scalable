@@ -1,0 +1,69 @@
+# ==========================================
+# 1. OS-SPECIFIC (The "Invisible" Clutter)
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# ==========================================
+# 2. SECURITY & SECRETS (NEVER COMMIT THESE)
+# ==========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+cert.psh
+credentials.json
+
+# ==========================================
+# 3. DEPENDENCIES (Installable via CLI)
+# ==========================================
+node_modules/
+jspm_packages/
+bower_components/
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+
+# ==========================================
+# 4. BUILD & OUTPUT (Auto-generated code)
+# ==========================================
+dist/
+build/
+.next/
+out/
+bin/
+obj/
+*.exe
+*.dll
+*.so
+
+# ==========================================
+# 5. IDEs & EDITORS (Personal settings)
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# ==========================================
+# 6. LOGS & TEMPS
+# ==========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tmp/
+.temp/

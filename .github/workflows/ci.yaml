@@ -1,0 +1,162 @@
+# ============================================================
+# ci.yml — Continuous Integration
+# TRIGGER : Every PR targeting master
+# PURPOSE : Validate code quality, run tests, security scan
+#           This is the gate. Merge is BLOCKED if this fails.
+# DEPLOYS : NOTHING. Tests only.
+# ============================================================
+
+name: CI — Lint, Test, Security
+
+on:
+  pull_request:
+    branches: [master, develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ master, develop, feature/** ]
+
+# Cancel in-progress CI runs if a new commit is pushed to the same PR
+# Prevents 5 queued runs when a developer pushes 5 times quickly
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ─────────────────────────────────────────
+  # JOB 1: Lint & Format Check
+  # Fast. Runs first. No point running tests
+  # if code style is broken.
+  # ─────────────────────────────────────────
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dev dependencies
+        run: uv sync --dev
+
+      - name: Run Ruff linter
+        run: uv run ruff check app/ tests/
+
+      - name: Run Ruff formatter check
+        run: uv run ruff format --check app/ tests/
+
+  # ─────────────────────────────────────────
+  # JOB 2: Unit + Integration Tests
+  # Runs in parallel with lint.
+  # Tests live in tests/ — pytest discovers them.
+  # ─────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run tests with coverage
+        run: |
+          uv run pytest tests/ \
+            --tb=short \
+            --junitxml=test-results/junit.xml \
+            --cov=app \
+            --cov-report=xml:test-results/coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70
+        # --cov-fail-under=70 → pipeline fails if coverage drops below 70%
+        # Raise this threshold over time as your test suite matures
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()   # upload even when tests fail — you need the report to debug
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+  # ─────────────────────────────────────────
+  # JOB 3: Docker Build Validation
+  # Does NOT push — just verifies the image
+  # can be built. Catches Dockerfile issues
+  # before they reach the deploy pipeline.
+  # ─────────────────────────────────────────
+  docker-build-check:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint, test]   # only validate docker if code is clean
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false          # IMPORTANT: never push from a PR pipeline
+          tags: scalable-api:pr-${{ github.event.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────
+  # JOB 4: Security Scan
+  # Scan dependencies for known CVEs.
+  # Runs in parallel — doesn't block test job.
+  # ─────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Run pip-audit (dependency CVE scan)
+        run: |
+          uv tool install pip-audit
+          uv run pip-audit --requirement <(uv export --format requirements-txt)
+
+      - name: Scan for secrets in code
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified

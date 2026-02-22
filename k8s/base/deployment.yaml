@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scalable-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: scalable-api
+  template:
+    metadata:
+      labels:
+        app: scalable-api
+    spec:
+      containers:
+        - name: scalable-api
+          # ← This is the placeholder the pipeline substitutes
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
