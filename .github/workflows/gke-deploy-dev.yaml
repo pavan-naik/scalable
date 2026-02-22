@@ -57,6 +57,9 @@ jobs:
   build-push:
     name: Build & Push Image
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     timeout-minutes: 20
     needs: test
 
