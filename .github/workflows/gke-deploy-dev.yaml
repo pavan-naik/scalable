@@ -108,6 +108,9 @@ jobs:
   deploy-dev:
     name: Deploy to Dev
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     timeout-minutes: 10
     needs: build-push
     environment: dev   # maps to GitHub Environment (optional protection rules)
