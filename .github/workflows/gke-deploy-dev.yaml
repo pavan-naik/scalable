@@ -170,7 +170,7 @@ jobs:
           kubectl port-forward svc/scalable-api-svc ${{ env.PORT }}:80 \
             -n ${{ env.NAMESPACE }} &
           sleep 5
-          curl -f http://localhost:${{ env.PORT }}/health || exit 1
+          curl -f http://localhost:${{ env.PORT }}/health/live || exit 1
           echo "✅ Dev deployment healthy"
 
       - name: Print deployment summary
