@@ -167,7 +167,7 @@ jobs:
             -n ${{ env.NAMESPACE }} --timeout=60s
 
           # Port-forward and test health endpoint
-          kubectl port-forward svc/scalable-api ${{ env.PORT }}:80 \
+          kubectl port-forward svc/scalable-api-svc ${{ env.PORT }}:80 \
             -n ${{ env.NAMESPACE }} &
           sleep 5
           curl -f http://localhost:${{ env.PORT }}/health || exit 1
